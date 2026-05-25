@@ -5,6 +5,7 @@
 //  Created by İbrahim Çetin on 23.11.2025.
 //
 
+import Foundation
 import libgit2
 
 extension Repository {
@@ -19,7 +20,6 @@ extension Repository {
     ///
     /// If the remote is not specified, the upstream of the current branch is used
     /// and if the upstream branch is not found, the `origin` remote is used.
-    // TODO: Implement options of these methods
     public nonisolated func push(remote: Remote? = nil, createsRefspec: Bool = true) async throws(SwiftGitXError) {
         // Get the current branch or throw an error if HEAD is detached
         let currentBranch = try branch.current
@@ -49,6 +49,63 @@ extension Repository {
         // Perform the push operation using configured refspecs
         try git(operation: .push) {
             git_remote_push(remotePointer, nil, nil)
+        }
+    }
+
+    /// Push changes of the current branch to the remote with SSH credentials.
+    ///
+    /// - Parameters:
+    ///   - remote: The remote to push the changes to.
+    ///   - credentials: The SSH credentials for authentication.
+    ///   - createsRefspec: If `true`, automatically creates a push refspec when none exists.
+    ///     If `false`, throws an error when no matching refspec is found. Defaults to `true`.
+    ///
+    /// This method uses the configured refspecs to push the changes to the remote.
+    ///
+    /// If the remote is not specified, the upstream of the current branch is used
+    /// and if the upstream branch is not found, the `origin` remote is used.
+    public nonisolated func push(
+        remote: Remote? = nil,
+        credentials: SSHCredentials,
+        createsRefspec: Bool = true
+    ) async throws(SwiftGitXError) {
+        // Get the current branch or throw an error if HEAD is detached
+        let currentBranch = try branch.current
+
+        // Get the remote or throw an error if not found
+        guard let remote = remote ?? currentBranch.remote ?? self.remote["origin"] else {
+            throw SwiftGitXError(code: .notFound, category: .reference, message: "Remote not found")
+        }
+
+        // Ensure a push refspec exists for the current branch
+        if try !hasPushRefspec(for: currentBranch, remote: remote) {
+            if createsRefspec {
+                // Add a push refspec for the current branch if not exists
+                try addPushRefspec(for: currentBranch, remote: remote)
+            } else {
+                throw SwiftGitXError(
+                    code: .notFound, operation: .push, category: .reference,
+                    message: "No push refspec configured for branch '\(currentBranch.name)' on remote '\(remote.name)'"
+                )
+            }
+        }
+
+        // Create credential payload
+        let (credentialKey, credentialPayload) = createCredentialPayload(for: credentials)
+        defer { releaseCredentialPayload(credentialPayload, key: credentialKey) }
+
+        // Set up push options with credentials callback
+        var pushOpts = git_push_options()
+        pushOpts.callbacks.credentials = sshCredentialCallback
+        pushOpts.callbacks.payload = UnsafeMutableRawPointer(mutating: credentialPayload)
+
+        // Lookup the remote
+        let remotePointer = try ReferenceFactory.lookupRemotePointer(name: remote.name, repositoryPointer: pointer)
+        defer { git_remote_free(remotePointer) }
+
+        // Perform the push operation using configured refspecs
+        try git(operation: .push) {
+            git_remote_push(remotePointer, nil, &pushOpts)
         }
     }
 

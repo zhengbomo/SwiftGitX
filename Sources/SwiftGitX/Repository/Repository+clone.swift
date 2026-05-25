@@ -59,6 +59,66 @@ extension Repository {
             throw error
         }
     }
+
+    /// Clone a repository with SSH credentials for authentication.
+    ///
+    /// Use this method when cloning from SSH URLs (e.g., `git@github.com:user/repo.git`)
+    /// that require SSH key authentication.
+    ///
+    /// - Parameters:
+    ///   - remoteURL: The SSH URL of the repository to clone.
+    ///   - localURL: The path to clone the repository to.
+    ///   - credentials: The SSH credentials for authentication.
+    ///   - options: The clone options. Defaults to `.default`.
+    ///   - transferProgressHandler: An optional closure that is called with the transfer progress.
+    ///
+    /// - Returns: The cloned repository at the specified path.
+    ///
+    /// - Throws: `SwiftGitXError` if the repository cannot be cloned.
+    public nonisolated static func clone(
+        from remoteURL: URL,
+        to localURL: URL,
+        credentials: SSHCredentials,
+        options: CloneOptions = .default,
+        transferProgressHandler: TransferProgressHandler? = nil
+    ) async throws(SwiftGitXError) -> Repository {
+        // Initialize the SwiftGitXRuntime
+        try SwiftGitXRuntime.initialize()
+
+        // Create credential payload
+        let (credentialKey, credentialPayload) = createCredentialPayload(for: credentials)
+        defer { releaseCredentialPayload(credentialPayload, key: credentialKey) }
+
+        // Initialize the clone options
+        var cloneOptions = options.gitCloneOptions
+        cloneOptions.checkout_opts.checkout_strategy = GIT_CHECKOUT_SAFE.rawValue
+        cloneOptions.fetch_opts.callbacks.transfer_progress = transferProgressCallback
+        cloneOptions.fetch_opts.callbacks.credentials = sshCredentialCallback
+        cloneOptions.fetch_opts.callbacks.payload = UnsafeMutableRawPointer(mutating: credentialPayload)
+
+        // Set up the progress handler payload if provided
+        var handlerPointer: UnsafeMutablePointer<TransferProgressHandler>?
+        if let transferProgressHandler {
+            handlerPointer = .allocate(capacity: 1)
+            handlerPointer?.initialize(to: transferProgressHandler)
+            cloneOptions.fetch_opts.callbacks.payload = UnsafeMutableRawPointer(handlerPointer)
+        }
+        defer { handlerPointer?.deallocate() }
+
+        do {
+            let pointer = try git(operation: .clone) {
+                var pointer: OpaquePointer?
+                let status = git_clone(&pointer, remoteURL.absoluteString, localURL.path, &cloneOptions)
+                return (pointer, status)
+            }
+
+            return Repository(pointer: pointer)
+        } catch {
+            // Shutdown the SwiftGitXRuntime on error
+            _ = try? SwiftGitXRuntime.shutdown()
+            throw error
+        }
+    }
 }
 
 // MARK: - Transfer Progress Callback
