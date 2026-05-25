@@ -5,6 +5,7 @@ import PackageDescription
 
 let package = Package(
     name: "SwiftGitX",
+    version: "1.0.0",
     platforms: [
         .macOS(.v10_15),
         .iOS(.v13),
