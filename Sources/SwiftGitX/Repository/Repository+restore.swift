@@ -6,7 +6,7 @@
 //
 
 import Foundation
-import libgit2
+import Clibgit2
 
 extension Repository {
     /// Restores working tree files.

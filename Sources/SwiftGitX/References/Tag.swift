@@ -6,7 +6,7 @@
 //
 
 import Foundation
-import libgit2
+import Clibgit2
 
 /// A tag representation in the repository.
 public struct Tag: Object, Reference {

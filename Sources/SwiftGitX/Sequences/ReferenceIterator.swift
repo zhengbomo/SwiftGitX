@@ -1,4 +1,4 @@
-import libgit2
+import Clibgit2
 
 public class ReferenceIterator: IteratorProtocol {
     private var referenceIterator: UnsafeMutablePointer<git_reference_iterator>?

@@ -5,7 +5,7 @@
 //  Created by İbrahim Çetin on 23.11.2025.
 //
 
-import libgit2
+import Clibgit2
 
 /// Executes a Git operation and automatically checks for errors.
 ///

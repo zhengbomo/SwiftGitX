@@ -5,7 +5,7 @@
 //  Created by İbrahim Çetin on 24.11.2025.
 //
 
-import libgit2
+import Clibgit2
 
 /// An Object ID representation in the repository.
 ///

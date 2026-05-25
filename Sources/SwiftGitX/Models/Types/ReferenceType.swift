@@ -5,7 +5,7 @@
 //  Created by İbrahim Çetin on 29.11.2025.
 //
 
-import libgit2
+import Clibgit2
 
 /// The type of a Git reference.
 ///

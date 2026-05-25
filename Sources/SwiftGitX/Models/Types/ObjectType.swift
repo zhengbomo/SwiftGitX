@@ -1,4 +1,4 @@
-import libgit2
+import Clibgit2
 
 public enum ObjectType: LibGit2RawRepresentable {
     case any

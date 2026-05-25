@@ -1,4 +1,4 @@
-import libgit2
+import Clibgit2
 
 enum ReferenceFactory {
     /// Creates a reference based on the given pointer.

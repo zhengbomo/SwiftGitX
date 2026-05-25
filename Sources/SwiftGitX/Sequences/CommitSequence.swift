@@ -1,4 +1,4 @@
-import libgit2
+import Clibgit2
 
 /// A sequence of commits.
 ///

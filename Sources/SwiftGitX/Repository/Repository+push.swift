@@ -6,7 +6,7 @@
 //
 
 import Foundation
-import libgit2
+import Clibgit2
 
 extension Repository {
     /// Push changes of the current branch to the remote.

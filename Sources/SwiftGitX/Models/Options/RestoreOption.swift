@@ -1,4 +1,4 @@
-import libgit2
+import Clibgit2
 
 /// Options for restoring.
 public struct RestoreOption: OptionSet, Sendable {

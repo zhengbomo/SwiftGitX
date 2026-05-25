@@ -1,4 +1,4 @@
-import libgit2
+import Clibgit2
 
 /// Represents the differences between two trees.
 public struct Diff: Equatable, Hashable {

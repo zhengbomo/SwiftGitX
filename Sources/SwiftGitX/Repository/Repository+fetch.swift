@@ -6,7 +6,7 @@
 //
 
 import Foundation
-import libgit2
+import Clibgit2
 
 extension Repository {
     /// Fetch the objects and refs from the other repository.

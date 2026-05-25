@@ -5,7 +5,7 @@
 //  Created by İbrahim Çetin on 23.11.2025.
 //
 
-import libgit2
+import Clibgit2
 
 extension Repository {
     /// Create a new commit containing the current contents of the index.

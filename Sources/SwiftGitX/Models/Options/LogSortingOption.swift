@@ -1,4 +1,4 @@
-import libgit2
+import Clibgit2
 
 /// Options for sorting the log.
 public struct LogSortingOption: OptionSet, Sendable {

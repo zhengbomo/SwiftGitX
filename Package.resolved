@@ -1,13 +1,13 @@
 {
-  "originHash" : "04c04afe6221289f1c01e736410be7b1879d471516218fa3e390f472d3bbba09",
+  "originHash" : "fa98a2006f255e5859f293e18d6cb982b1328a24a51c4c63acfd18b855b60d56",
   "pins" : [
     {
-      "identity" : "libgit2",
+      "identity" : "static-libgit2",
       "kind" : "remoteSourceControl",
-      "location" : "https://github.com/ibrahimcetin/libgit2.git",
+      "location" : "https://github.com/flaboy/static-libgit2",
       "state" : {
-        "revision" : "52287b0914f300f916b58fec80e13d8dd8f6824f",
-        "version" : "1.9.2"
+        "revision" : "bc5411efcc0abd9b0e37090ad2a1da12cea2967d",
+        "version" : "1.8.5"
       }
     }
   ],

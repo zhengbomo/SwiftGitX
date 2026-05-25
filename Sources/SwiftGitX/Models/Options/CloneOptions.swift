@@ -1,4 +1,4 @@
-import libgit2
+import Clibgit2
 
 /// Options for the clone operation.
 public struct CloneOptions: Sendable {

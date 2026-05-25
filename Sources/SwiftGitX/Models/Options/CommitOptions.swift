@@ -1,4 +1,4 @@
-import libgit2
+import Clibgit2
 
 /// Options for the commit operation.
 public struct CommitOptions: Sendable {

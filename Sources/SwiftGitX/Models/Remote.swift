@@ -6,7 +6,7 @@
 //
 
 import Foundation
-import libgit2
+import Clibgit2
 
 /// A remote representation in the repository.
 public struct Remote: Equatable, Hashable, Sendable {

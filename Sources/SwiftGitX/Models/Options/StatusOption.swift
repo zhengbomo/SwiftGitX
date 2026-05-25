@@ -1,4 +1,4 @@
-import libgit2
+import Clibgit2
 
 /// Options for the status operation.
 public struct StatusOption: OptionSet, Sendable {

@@ -5,7 +5,7 @@
 //  Created by İbrahim Çetin on 24.11.2025.
 //
 
-import libgit2
+import Clibgit2
 
 /// A collection of branches and their operations.
 public struct BranchCollection: Sequence, Sendable {

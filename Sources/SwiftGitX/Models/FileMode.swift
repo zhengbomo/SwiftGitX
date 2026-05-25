@@ -1,4 +1,4 @@
-import libgit2
+import Clibgit2
 
 public enum FileMode: UInt32, LibGit2RawRepresentable {
     case unreadable = 0_000_000

@@ -6,7 +6,7 @@
 //
 
 import Foundation
-import libgit2
+import Clibgit2
 
 /// Stores credential contexts for libgit2 callbacks
 final class SSHCredentialStore: @unchecked Sendable {

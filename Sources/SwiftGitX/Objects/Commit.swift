@@ -6,7 +6,7 @@
 //
 
 import Foundation
-import libgit2
+import Clibgit2
 
 /// A commit object representation in the repository.
 public struct Commit: Object, Sendable {
