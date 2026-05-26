@@ -20,7 +20,7 @@ let package = Package(
     ],
     dependencies: [
         // static-libgit2 提供预编译的 Clibgit2，包含 libgit2 + libssh2 + OpenSSL
-        .package(url: "https://github.com/flaboy/static-libgit2", from: "1.8.4")
+        .package(url: "https://github.com/flaboy/static-libgit2", from: "1.8.5")
     ],
     targets: [
         .target(

@@ -1,6 +1,6 @@
 import Foundation
 import Testing
-import libgit2
+import Clibgit2
 
 @testable import SwiftGitX
 
