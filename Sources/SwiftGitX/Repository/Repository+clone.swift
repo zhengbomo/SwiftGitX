@@ -85,9 +85,12 @@ extension Repository {
         // Initialize the SwiftGitXRuntime
         try SwiftGitXRuntime.initialize()
 
-        // Create credential payload
-        let (credentialKey, credentialPayload) = createCredentialPayload(for: credentials)
-        defer { releaseCredentialPayload(credentialPayload, key: credentialKey) }
+        // Create combined payload for credentials and transfer progress
+        let (credentialKey, combinedPayload) = createCombinedPayload(
+            for: credentials,
+            transferProgressHandler: transferProgressHandler
+        )
+        defer { releaseCombinedPayload(combinedPayload, key: credentialKey) }
 
         // Initialize the clone options
         var cloneOptions = options.gitCloneOptions
@@ -95,16 +98,7 @@ extension Repository {
         cloneOptions.fetch_opts.callbacks.transfer_progress = transferProgressCallback
         cloneOptions.fetch_opts.callbacks.credentials = sshCredentialCallback
         cloneOptions.fetch_opts.callbacks.certificate_check = certificateCheckCallback
-        cloneOptions.fetch_opts.callbacks.payload = UnsafeMutableRawPointer(mutating: credentialPayload)
-
-        // Set up the progress handler payload if provided
-        var handlerPointer: UnsafeMutablePointer<TransferProgressHandler>?
-        if let transferProgressHandler {
-            handlerPointer = .allocate(capacity: 1)
-            handlerPointer?.initialize(to: transferProgressHandler)
-            cloneOptions.fetch_opts.callbacks.payload = UnsafeMutableRawPointer(handlerPointer)
-        }
-        defer { handlerPointer?.deallocate() }
+        cloneOptions.fetch_opts.callbacks.payload = combinedPayload
 
         do {
             let pointer = try git(operation: .clone) {
@@ -134,17 +128,25 @@ private let transferProgressCallback: git_indexer_progress_cb = { stats, payload
         return 1  // Stop the transfer
     }
 
-    // If no payload, continue without calling the handler
-    guard let stats = stats?.pointee,
-        let payload = payload?.assumingMemoryBound(to: TransferProgressHandler.self)
-    else {
+    // If no stats, continue without calling the handler
+    guard let stats = stats?.pointee else {
         return 0  // Continue the transfer
     }
 
-    // Create a TransferProgress instance and call the handler
-    let progress = TransferProgress(from: stats)
-    let handler = payload.pointee
-    handler(progress)
+    // Try to get the handler from payload
+    if let payload = payload {
+        // Try CombinedCallbackPayload first
+        if let combined = try? Unmanaged<CombinedCallbackPayload>.fromOpaque(payload).takeUnretainedValue(),
+           let handler = combined.transferProgressHandler {
+            let progress = TransferProgress(from: stats)
+            handler(progress)
+        } else if let handlerPtr = payload.assumingMemoryBound(to: TransferProgressHandler.self) as UnsafeMutablePointer<TransferProgressHandler>? {
+            // Fallback to direct TransferProgressHandler pointer
+            let progress = TransferProgress(from: stats)
+            let handler = handlerPtr.pointee
+            handler(progress)
+        }
+    }
 
     return 0  // Continue the transfer
 }

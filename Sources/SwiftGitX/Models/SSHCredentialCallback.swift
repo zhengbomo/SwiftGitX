@@ -49,11 +49,12 @@ func sshCredentialCallback(
         return GIT_EUSER.rawValue
     }
 
-    // The payload is a pointer to a stored String key
-    let keyPtr = payload.assumingMemoryBound(to: String.self)
-    let key = keyPtr.pointee
+    // Try to get the credential key from CombinedCallbackPayload
+    let credentialKey: String
+    let combinedPayload = Unmanaged<CombinedCallbackPayload>.fromOpaque(payload).takeUnretainedValue()
+    credentialKey = combinedPayload.credentialKey
 
-    guard let credentials = SSHCredentialStore.shared.retrieve(for: key) else {
+    guard let credentials = SSHCredentialStore.shared.retrieve(for: credentialKey) else {
         return GIT_EUSER.rawValue
     }
 
@@ -78,6 +79,17 @@ final class CredentialKeyHolder {
     }
 }
 
+/// Combined payload for both credentials and transfer progress
+final class CombinedCallbackPayload {
+    let credentialKey: String
+    var transferProgressHandler: TransferProgressHandler?
+
+    init(credentialKey: String, transferProgressHandler: TransferProgressHandler? = nil) {
+        self.credentialKey = credentialKey
+        self.transferProgressHandler = transferProgressHandler
+    }
+}
+
 /// Generates a unique key and returns a pointer holder for use as callback payload
 func createCredentialPayload(for credentials: SSHCredentials) -> (key: String, payload: UnsafeMutableRawPointer) {
     let key = UUID().uuidString
@@ -87,6 +99,26 @@ func createCredentialPayload(for credentials: SSHCredentials) -> (key: String, p
     let pointer = Unmanaged.passRetained(holder).toOpaque()
 
     return (key, pointer)
+}
+
+/// Creates a combined payload for credentials and transfer progress handler
+func createCombinedPayload(
+    for credentials: SSHCredentials,
+    transferProgressHandler: TransferProgressHandler? = nil
+) -> (key: String, payload: UnsafeMutableRawPointer) {
+    let key = UUID().uuidString
+    SSHCredentialStore.shared.store(credentials, for: key)
+
+    let combined = CombinedCallbackPayload(credentialKey: key, transferProgressHandler: transferProgressHandler)
+    let pointer = Unmanaged.passRetained(combined).toOpaque()
+
+    return (key, pointer)
+}
+
+/// Releases a combined payload created by createCombinedPayload
+func releaseCombinedPayload(_ payload: UnsafeMutableRawPointer, key: String) {
+    SSHCredentialStore.shared.remove(for: key)
+    Unmanaged<CombinedCallbackPayload>.fromOpaque(payload).release()
 }
 
 /// Releases a credential payload created by createCredentialPayload

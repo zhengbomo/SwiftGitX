@@ -59,6 +59,7 @@ extension Repository {
         // Set up fetch options with credentials callback
         var fetchOpts = git_fetch_options()
         fetchOpts.callbacks.credentials = sshCredentialCallback
+        fetchOpts.callbacks.certificate_check = certificateCheckCallback
         fetchOpts.callbacks.payload = UnsafeMutableRawPointer(mutating: credentialPayload)
 
         // Lookup the remote
