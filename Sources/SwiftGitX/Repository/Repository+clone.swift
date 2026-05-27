@@ -94,11 +94,8 @@ extension Repository {
         cloneOptions.checkout_opts.checkout_strategy = GIT_CHECKOUT_SAFE.rawValue
         cloneOptions.fetch_opts.callbacks.transfer_progress = transferProgressCallback
         cloneOptions.fetch_opts.callbacks.credentials = sshCredentialCallback
+        cloneOptions.fetch_opts.callbacks.certificate_check = certificateCheckCallback
         cloneOptions.fetch_opts.callbacks.payload = UnsafeMutableRawPointer(mutating: credentialPayload)
-        // 添加这个回调，返回值为
-        cloneOptions.fetch_opts.callbacks.certificate_check = { (_, _, _, _) in
-            return 0;
-        }
 
         // Set up the progress handler payload if provided
         var handlerPointer: UnsafeMutablePointer<TransferProgressHandler>?

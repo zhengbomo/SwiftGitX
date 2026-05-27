@@ -94,3 +94,24 @@ func releaseCredentialPayload(_ payload: UnsafeMutableRawPointer, key: String) {
     SSHCredentialStore.shared.remove(for: key)
     Unmanaged<CredentialKeyHolder>.fromOpaque(payload).release()
 }
+
+/// The certificate check callback function for libgit2
+///
+/// This callback is invoked by libgit2 to verify SSL/TLS certificates during SSH/HTTPS operations.
+/// By default, it accepts all certificates (returns 0).
+///
+/// - Parameters:
+///   - cert: Pointer to the certificate information
+///   - valid: Whether the certificate is valid according to libgit2's checks
+///   - host: The hostname being connected to
+///   - payload: User-provided payload (unused in this implementation)
+///
+/// - Returns: 0 to accept the certificate, non-zero to reject
+let certificateCheckCallback: git_transport_certificate_check_cb = { cert, valid, host, payload in
+    // For now, accept all certificates
+    // In production, you might want to:
+    // 1. Check the 'valid' parameter
+    // 2. Verify the certificate against known hosts
+    // 3. Prompt the user for unknown certificates
+    return 0
+}
