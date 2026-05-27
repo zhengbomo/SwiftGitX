@@ -96,6 +96,7 @@ extension Repository {
 
         // Set up push options with credentials callback
         var pushOpts = git_push_options()
+        git_push_options_init(&pushOpts, UInt32(GIT_PUSH_OPTIONS_VERSION))
         pushOpts.callbacks.credentials = sshCredentialCallback
         pushOpts.callbacks.certificate_check = certificateCheckCallback
         pushOpts.callbacks.payload = UnsafeMutableRawPointer(mutating: credentialPayload)
