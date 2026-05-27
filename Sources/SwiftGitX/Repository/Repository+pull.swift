@@ -30,6 +30,51 @@ extension Repository {
     /// try await repository.pull(remote: remote)
     /// ```
     public nonisolated func pull(remote: Remote? = nil) async throws(SwiftGitXError) {
+        try await pullInternal(remote: remote, credentials: nil)
+    }
+
+    /// Pull changes from the remote repository with SSH credentials.
+    ///
+    /// Use this method when pulling from SSH URLs that require SSH key authentication.
+    ///
+    /// - Parameters:
+    ///   - remote: The remote to pull the changes from.
+    ///   - credentials: The SSH credentials for authentication.
+    ///
+    /// This method fetches changes from the remote and merges them into the current branch.
+    /// It supports fast-forward merges and normal merges.
+    ///
+    /// If the remote is not specified, the upstream of the current branch is used
+    /// and if the upstream branch is not found, the `origin` remote is used.
+    ///
+    /// - Throws: `SwiftGitXError` if the pull operation fails or if there are conflicts.
+    ///
+    /// ### Example
+    /// ```swift
+    /// // Pull with SSH credentials
+    /// let credentials = SSHCredentials(
+    ///     username: "git",
+    ///     privateKey: privateKeyContent,
+    ///     passphrase: "mypassphrase"
+    /// )
+    /// try await repository.pull(credentials: credentials)
+    ///
+    /// // Pull from a specific remote with credentials
+    /// let remote = repository.remote["origin"]!
+    /// try await repository.pull(remote: remote, credentials: credentials)
+    /// ```
+    public nonisolated func pull(
+        remote: Remote? = nil,
+        credentials: SSHCredentials
+    ) async throws(SwiftGitXError) {
+        try await pullInternal(remote: remote, credentials: credentials)
+    }
+
+    /// Internal implementation of pull that handles both authenticated and non-authenticated cases.
+    private nonisolated func pullInternal(
+        remote: Remote? = nil,
+        credentials: SSHCredentials?
+    ) async throws(SwiftGitXError) {
         // Get the current branch
         let currentBranch = try branch.current
 
@@ -47,7 +92,11 @@ extension Repository {
         }
 
         // Fetch from remote first
-        try await fetch(remote: remote)
+        if let credentials = credentials {
+            try await fetch(remote: remote, credentials: credentials)
+        } else {
+            try await fetch(remote: remote)
+        }
 
         // Get the remote branch after fetch
         let remoteBranch = try branch.get(named: upstream.name, type: .remote)
