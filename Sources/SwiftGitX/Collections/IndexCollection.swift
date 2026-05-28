@@ -213,4 +213,21 @@ struct IndexCollection {
         // Write the index back to the repository
         try writeIndex(indexPointer: indexPointer)
     }
+
+    /// Cleans up conflict information from the index.
+    ///
+    /// This method removes all conflict entries from the index.
+    func cleanupConflict() throws(SwiftGitXError) {
+        // Read the index
+        let indexPointer = try readIndexPointer()
+        defer { git_index_free(indexPointer) }
+
+        // Clean up conflict information
+        try git(operation: .index) {
+            git_index_conflict_cleanup(indexPointer)
+        }
+
+        // Write the index back to the repository
+        try writeIndex(indexPointer: indexPointer)
+    }
 }
