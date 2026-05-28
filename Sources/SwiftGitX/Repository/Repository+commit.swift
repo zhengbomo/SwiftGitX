@@ -8,6 +8,26 @@
 import Clibgit2
 
 extension Repository {
+    /// Check if the repository is currently in a merge state.
+    ///
+    /// - Returns: `true` if the repository is in a merge state, `false` otherwise.
+    ///
+    /// This can be used to determine whether `commitMerge()` should be called
+    /// instead of the regular `commit()` method.
+    ///
+    /// ### Example
+    /// ```swift
+    /// if repository.isInMergeState {
+    ///     try repository.commitMerge()
+    /// } else {
+    ///     try repository.commit(message: "Regular commit")
+    /// }
+    /// ```
+    public var isInMergeState: Bool {
+        let state = git_repository_state(pointer)
+        return state == GIT_REPOSITORY_STATE_MERGE.rawValue
+    }
+
     /// Create a new commit containing the current contents of the index.
     ///
     /// - Parameters:
