@@ -362,12 +362,12 @@ extension Repository {
         defer { git_index_free(index) }
 
         if git_index_has_conflicts(index) == 1 {
-            // Clean up merge state
-            git_repository_state_cleanup(pointer)
+            // Don't clean up merge state - leave it so user can resolve conflicts and call commitMerge()
+            // The merge state will be cleaned up when commitMerge() is called after resolving conflicts
 
             throw SwiftGitXError(
                 code: .conflict, operation: .pull, category: .merge,
-                message: "Merge conflicts detected. Please resolve conflicts manually."
+                message: "Merge conflicts detected. Please resolve conflicts manually and call commitMerge()."
             )
         }
 

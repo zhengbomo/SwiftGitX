@@ -28,6 +28,43 @@ extension Repository {
         return state == GIT_REPOSITORY_STATE_MERGE.rawValue
     }
 
+    /// Abort an ongoing merge and return the repository to its pre-merge state.
+    ///
+    /// This method will:
+    /// 1. Reset the working directory to HEAD
+    /// 2. Clean up merge state files (MERGE_HEAD, MERGE_MSG, etc.)
+    ///
+    /// Use this when you want to cancel a merge that has conflicts.
+    ///
+    /// - Throws: `SwiftGitXError` if the repository is not in a merge state or the abort fails.
+    ///
+    /// ### Example
+    /// ```swift
+    /// do {
+    ///     try await repository.pull()
+    /// } catch let error as SwiftGitXError where error.code == .conflict {
+    ///     print("Conflicts detected, aborting merge...")
+    ///     try repository.abortMerge()
+    /// }
+    /// ```
+    public func abortMerge() throws(SwiftGitXError) {
+        guard isInMergeState else {
+            throw SwiftGitXError(
+                code: .error,
+                operation: .merge,
+                category: .merge,
+                message: "Repository is not in a merge state"
+            )
+        }
+
+        // Reset to HEAD to discard merge changes
+        let headCommit = try HEAD.target as! Commit
+        try reset(to: headCommit, mode: .hard)
+
+        // Clean up merge state
+        git_repository_state_cleanup(pointer)
+    }
+
     /// Create a new commit containing the current contents of the index.
     ///
     /// - Parameters:
