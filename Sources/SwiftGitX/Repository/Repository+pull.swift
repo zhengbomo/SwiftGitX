@@ -8,6 +8,171 @@
 import Clibgit2
 
 extension Repository {
+    /// Check if there would be conflicts when merging remote changes.
+    ///
+    /// - Parameters:
+    ///   - remote: The remote to check against. If nil, uses the upstream of the current branch or "origin".
+    ///
+    /// - Returns: A tuple containing:
+    ///   - hasConflicts: Whether conflicts would occur
+    ///   - conflictFiles: Array of file paths that would have conflicts (empty if no conflicts)
+    ///   - localCommitId: The current HEAD commit ID
+    ///   - remoteCommitId: The remote branch's latest commit ID
+    ///
+    /// - Throws: `SwiftGitXError` if the operation fails.
+    ///
+    /// ### Example
+    /// ```swift
+    /// let result = try await repository.checkMergeConflicts()
+    /// if result.hasConflicts {
+    ///     print("冲突文件: \(result.conflictFiles)")
+    /// } else {
+    ///     print("无冲突，可以安全合并")
+    /// }
+    /// ```
+    public nonisolated func checkMergeConflicts(
+        remote: Remote? = nil
+    ) async throws(SwiftGitXError) -> (hasConflicts: Bool, conflictFiles: [String], localCommitId: String, remoteCommitId: String) {
+        // Get the current branch
+        let currentBranch = try branch.current
+
+        // Get the remote
+        guard let remote = remote ?? currentBranch.remote ?? self.remote["origin"] else {
+            throw SwiftGitXError(code: .notFound, operation: .pull, category: .reference, message: "Remote not found")
+        }
+
+        // Get the upstream branch name
+        guard let upstream = currentBranch.upstream else {
+            throw SwiftGitXError(
+                code: .notFound, operation: .pull, category: .reference,
+                message: "No upstream branch configured for '\(currentBranch.name)'"
+            )
+        }
+
+        // Fetch from remote first
+        try await fetch(remote: remote)
+
+        // Get the remote branch after fetch
+        let remoteBranch = try branch.get(named: upstream.name, type: .remote)
+
+        // Get the remote commit
+        guard let remoteCommit = remoteBranch.target as? Commit else {
+            throw SwiftGitXError(
+                code: .error, operation: .pull, category: .reference,
+                message: "Remote branch does not point to a commit"
+            )
+        }
+
+        // Get HEAD commit
+        let headCommit = try HEAD.target as! Commit
+
+        let localCommitId = headCommit.id.hex
+        let remoteCommitId = remoteCommit.id.hex
+
+        // Perform merge analysis
+        var analysis = git_merge_analysis_t(rawValue: 0)
+        var preference = git_merge_preference_t(rawValue: 0)
+
+        var remoteOID = remoteCommit.id.raw
+        var annotatedCommit: OpaquePointer?
+
+        try git(operation: .pull) {
+            git_annotated_commit_lookup(&annotatedCommit, pointer, &remoteOID)
+        }
+        defer { git_annotated_commit_free(annotatedCommit) }
+
+        var annotatedCommits: [OpaquePointer?] = [annotatedCommit]
+
+        try git(operation: .pull) {
+            annotatedCommits.withUnsafeMutableBufferPointer { buffer in
+                git_merge_analysis(&analysis, &preference, pointer, buffer.baseAddress, 1)
+            }
+        }
+
+        // Check if we're already up to date or can fast-forward
+        if analysis.rawValue & GIT_MERGE_ANALYSIS_UP_TO_DATE.rawValue != 0 {
+            return (false, [], localCommitId, remoteCommitId)
+        }
+
+        if analysis.rawValue & GIT_MERGE_ANALYSIS_FASTFORWARD.rawValue != 0 {
+            return (false, [], localCommitId, remoteCommitId)
+        }
+
+        // Normal merge required - check for conflicts in memory
+        if analysis.rawValue & GIT_MERGE_ANALYSIS_NORMAL.rawValue != 0 {
+            // Get local and remote trees
+            let localTree = try git(operation: .merge) {
+                var treePointer: OpaquePointer?
+                var localOID = headCommit.id.raw
+                var localCommitPointer: OpaquePointer?
+                var status = git_commit_lookup(&localCommitPointer, pointer, &localOID)
+                if status == 0 {
+                    status = git_commit_tree(&treePointer, localCommitPointer)
+                    git_commit_free(localCommitPointer)
+                }
+                return (treePointer, status)
+            }
+            defer { git_tree_free(localTree) }
+
+            let remoteTree = try git(operation: .merge) {
+                var treePointer: OpaquePointer?
+                var remoteOID = remoteCommit.id.raw
+                var remoteCommitPointer: OpaquePointer?
+                var status = git_commit_lookup(&remoteCommitPointer, pointer, &remoteOID)
+                if status == 0 {
+                    status = git_commit_tree(&treePointer, remoteCommitPointer)
+                    git_commit_free(remoteCommitPointer)
+                }
+                return (treePointer, status)
+            }
+            defer { git_tree_free(remoteTree) }
+
+            // Merge trees in memory
+            var mergeOptions = git_merge_options()
+            git_merge_options_init(&mergeOptions, UInt32(GIT_MERGE_OPTIONS_VERSION))
+
+            let index = try git(operation: .merge) {
+                var indexPointer: OpaquePointer?
+                let status = git_merge_trees(&indexPointer, pointer, nil, localTree, remoteTree, &mergeOptions)
+                return (indexPointer, status)
+            }
+            defer { git_index_free(index) }
+
+            // Check for conflicts
+            if git_index_has_conflicts(index) == 1 {
+                var conflictFiles: [String] = []
+
+                // Iterate through conflicts
+                var conflictIterator: OpaquePointer?
+                git_index_conflict_iterator_new(&conflictIterator, index)
+                defer { git_index_conflict_iterator_free(conflictIterator) }
+
+                var ancestor: UnsafePointer<git_index_entry>?
+                var our: UnsafePointer<git_index_entry>?
+                var their: UnsafePointer<git_index_entry>?
+
+                while git_index_conflict_next(&ancestor, &our, &their, conflictIterator) == 0 {
+                    if let path = our?.pointee.path {
+                        conflictFiles.append(String(cString: path))
+                    } else if let path = their?.pointee.path {
+                        conflictFiles.append(String(cString: path))
+                    } else if let path = ancestor?.pointee.path {
+                        conflictFiles.append(String(cString: path))
+                    }
+                }
+
+                return (true, conflictFiles, localCommitId, remoteCommitId)
+            } else {
+                return (false, [], localCommitId, remoteCommitId)
+            }
+        }
+
+        throw SwiftGitXError(
+            code: .error, operation: .pull, category: .merge,
+            message: "Merge analysis returned unexpected result"
+        )
+    }
+
     /// Pull changes from the remote repository.
     ///
     /// - Parameter remote: The remote to pull the changes from.
