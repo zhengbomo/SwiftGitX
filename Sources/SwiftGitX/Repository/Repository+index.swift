@@ -63,4 +63,11 @@ extension Repository {
     internal func removeAll() throws(SwiftGitXError) {
         try index.removeAll()
     }
+
+    /// Cleans up conflict information from the index.
+    ///
+    /// This method removes all conflict entries from the index.
+    public func cleanupConflict() throws(SwiftGitXError) {
+        try index.cleanupConflict()
+    }
 }
