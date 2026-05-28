@@ -12,6 +12,7 @@ extension Repository {
     ///
     /// - Parameters:
     ///   - remote: The remote to check against. If nil, uses the upstream of the current branch or "origin".
+    ///   - shouldFetch: Whether to fetch from remote before checking. Default is true.
     ///
     /// - Returns: A tuple containing:
     ///   - hasConflicts: Whether conflicts would occur
@@ -31,7 +32,8 @@ extension Repository {
     /// }
     /// ```
     public nonisolated func checkMergeConflicts(
-        remote: Remote? = nil
+        remote: Remote? = nil,
+        shouldFetch: Bool = true
     ) async throws(SwiftGitXError) -> (hasConflicts: Bool, conflictFiles: [String], localCommitId: String, remoteCommitId: String) {
         // Get the current branch
         let currentBranch = try branch.current
@@ -49,8 +51,10 @@ extension Repository {
             )
         }
 
-        // Fetch from remote first
-        try await fetch(remote: remote)
+        // Fetch from remote first if needed
+        if shouldFetch {
+            try await fetch(remote: remote)
+        }
 
         // Get the remote branch after fetch
         let remoteBranch = try branch.get(named: upstream.name, type: .remote)
