@@ -239,6 +239,35 @@ extension Repository {
         try await pullInternal(remote: remote, credentials: credentials)
     }
 
+    /// Merge changes from the remote branch without fetching.
+    ///
+    /// - Parameter remote: The remote to merge from.
+    ///
+    /// This method merges the remote branch into the current branch without fetching first.
+    /// Use this when you've already fetched and want to merge the changes.
+    /// It supports fast-forward merges and normal merges.
+    ///
+    /// If the remote is not specified, the upstream of the current branch is used
+    /// and if the upstream branch is not found, the `origin` remote is used.
+    ///
+    /// - Throws: `SwiftGitXError` if the merge operation fails or if there are conflicts.
+    ///
+    /// ### Example
+    /// ```swift
+    /// // Fetch first
+    /// try await repository.fetch()
+    ///
+    /// // Then merge without fetching again
+    /// try await repository.merge()
+    ///
+    /// // Merge from a specific remote
+    /// let remote = repository.remote["origin"]!
+    /// try await repository.merge(remote: remote)
+    /// ```
+    public nonisolated func merge(remote: Remote? = nil) async throws(SwiftGitXError) {
+        try await mergeInternal(remote: remote)
+    }
+
     /// Internal implementation of pull that handles both authenticated and non-authenticated cases.
     private nonisolated func pullInternal(
         remote: Remote? = nil,
@@ -267,7 +296,31 @@ extension Repository {
             try await fetch(remote: remote)
         }
 
-        // Get the remote branch after fetch
+        // Perform the merge
+        try await mergeInternal(remote: remote)
+    }
+
+    /// Internal implementation of merge that performs the actual merge operation.
+    private nonisolated func mergeInternal(
+        remote: Remote? = nil
+    ) async throws(SwiftGitXError) {
+        // Get the current branch
+        let currentBranch = try branch.current
+
+        // Get the remote
+        guard let remote = remote ?? currentBranch.remote ?? self.remote["origin"] else {
+            throw SwiftGitXError(code: .notFound, operation: .pull, category: .reference, message: "Remote not found")
+        }
+
+        // Get the upstream branch name
+        guard let upstream = currentBranch.upstream else {
+            throw SwiftGitXError(
+                code: .notFound, operation: .pull, category: .reference,
+                message: "No upstream branch configured for '\(currentBranch.name)'"
+            )
+        }
+
+        // Get the remote branch
         let remoteBranch = try branch.get(named: upstream.name, type: .remote)
 
         // Get the commit to merge
