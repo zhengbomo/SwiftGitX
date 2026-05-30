@@ -104,6 +104,28 @@ extension Repository {
 
         // Normal merge required - check for conflicts in memory
         if analysis.rawValue & GIT_MERGE_ANALYSIS_NORMAL.rawValue != 0 {
+            // Find merge base (common ancestor)
+            var mergeBaseOID = git_oid()
+            try git(operation: .merge) {
+                var localOID = headCommit.id.raw
+                var remoteOID = remoteCommit.id.raw
+                git_merge_base(&mergeBaseOID, pointer, &localOID, &remoteOID)
+            }
+
+            // Get ancestor tree
+            let ancestorTree = try git(operation: .merge) {
+                var treePointer: OpaquePointer?
+                var ancestorCommitPointer: OpaquePointer?
+                var ancestorOID = mergeBaseOID
+                var status = git_commit_lookup(&ancestorCommitPointer, pointer, &ancestorOID)
+                if status == 0 {
+                    status = git_commit_tree(&treePointer, ancestorCommitPointer)
+                    git_commit_free(ancestorCommitPointer)
+                }
+                return (treePointer, status)
+            }
+            defer { git_tree_free(ancestorTree) }
+
             // Get local and remote trees
             let localTree = try git(operation: .merge) {
                 var treePointer: OpaquePointer?
@@ -131,13 +153,13 @@ extension Repository {
             }
             defer { git_tree_free(remoteTree) }
 
-            // Merge trees in memory
+            // Merge trees in memory with ancestor (three-way merge)
             var mergeOptions = git_merge_options()
             git_merge_options_init(&mergeOptions, UInt32(GIT_MERGE_OPTIONS_VERSION))
 
             let index = try git(operation: .merge) {
                 var indexPointer: OpaquePointer?
-                let status = git_merge_trees(&indexPointer, pointer, nil, localTree, remoteTree, &mergeOptions)
+                let status = git_merge_trees(&indexPointer, pointer, ancestorTree, localTree, remoteTree, &mergeOptions)
                 return (indexPointer, status)
             }
             defer { git_index_free(index) }
