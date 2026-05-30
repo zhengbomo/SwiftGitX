@@ -109,7 +109,7 @@ extension Repository {
             try git(operation: .merge) {
                 var localOID = headCommit.id.raw
                 var remoteOID = remoteCommit.id.raw
-                git_merge_base(&mergeBaseOID, pointer, &localOID, &remoteOID)
+                return git_merge_base(&mergeBaseOID, pointer, &localOID, &remoteOID)
             }
 
             // Get ancestor tree
