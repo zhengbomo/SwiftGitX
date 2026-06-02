@@ -136,15 +136,9 @@ private let transferProgressCallback: git_indexer_progress_cb = { stats, payload
     // Try to get the handler from payload
     if let payload = payload {
         // Try CombinedCallbackPayload first
-        if let combined = try? Unmanaged<CombinedCallbackPayload>.fromOpaque(payload).takeUnretainedValue() {
-            if let handler = combined.transferProgressHandler {
-                let progress = TransferProgress(from: stats)
-                handler(progress)
-            }
-        } else if let handlerPtr = payload.assumingMemoryBound(to: TransferProgressHandler.self) as UnsafeMutablePointer<TransferProgressHandler>? {
-            // Fallback to direct TransferProgressHandler pointer
+        let combined = Unmanaged<CombinedCallbackPayload>.fromOpaque(payload).takeUnretainedValue()
+        if let handler = combined.transferProgressHandler {
             let progress = TransferProgress(from: stats)
-            let handler = handlerPtr.pointee
             handler(progress)
         }
     }

@@ -286,8 +286,8 @@ extension Repository {
     /// let remote = repository.remote["origin"]!
     /// try await repository.merge(remote: remote)
     /// ```
-    public nonisolated func merge(remote: Remote? = nil) async throws(SwiftGitXError) {
-        try await mergeInternal(remote: remote)
+    public nonisolated func merge(remote: Remote? = nil) throws(SwiftGitXError) {
+        try mergeInternal(remote: remote)
     }
 
     /// Internal implementation of pull that handles both authenticated and non-authenticated cases.
@@ -304,7 +304,7 @@ extension Repository {
         }
 
         // Get the upstream branch name
-        guard let upstream = currentBranch.upstream else {
+        guard let _ = currentBranch.upstream else {
             throw SwiftGitXError(
                 code: .notFound, operation: .pull, category: .reference,
                 message: "No upstream branch configured for '\(currentBranch.name)'"
@@ -319,18 +319,18 @@ extension Repository {
         }
 
         // Perform the merge
-        try await mergeInternal(remote: remote)
+        try mergeInternal(remote: remote)
     }
 
     /// Internal implementation of merge that performs the actual merge operation.
     private nonisolated func mergeInternal(
         remote: Remote? = nil
-    ) async throws(SwiftGitXError) {
+    ) throws(SwiftGitXError) {
         // Get the current branch
         let currentBranch = try branch.current
 
         // Get the remote
-        guard let remote = remote ?? currentBranch.remote ?? self.remote["origin"] else {
+        guard let _ = remote ?? currentBranch.remote ?? self.remote["origin"] else {
             throw SwiftGitXError(code: .notFound, operation: .pull, category: .reference, message: "Remote not found")
         }
 
