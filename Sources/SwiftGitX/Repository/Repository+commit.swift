@@ -85,15 +85,15 @@ extension Repository {
         var index: OpaquePointer?
         defer { git_index_free(index) }
 
-        try git(operation: .add) {
+        try git(operation: .commit) {
             git_repository_index(&index, pointer)
         }
 
-        try git(operation: .add) {
+        try git(operation: .commit) {
             git_index_add_bypath(index, path)
         }
 
-        try git(operation: .add) {
+        try git(operation: .commit) {
             git_index_write(index)
         }
 
