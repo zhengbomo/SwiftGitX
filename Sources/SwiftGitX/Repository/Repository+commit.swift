@@ -65,6 +65,42 @@ extension Repository {
         git_repository_state_cleanup(pointer)
     }
 
+    /// 将已解决冲突的文件添加到暂存区
+    /// - Parameter path: 文件的相对路径
+    /// - Returns: 是否所有冲突都已解决（true 表示可以调用 commitMerge 完成 merge）
+    /// - Throws: `SwiftGitXError` if the file cannot be staged
+    ///
+    /// ### Example
+    /// ```swift
+    /// // 解决第一个冲突文件
+    /// let allResolved = try repository.stageResolvedFile(path: "file1.swift")
+    /// if !allResolved {
+    ///     // 还有其他冲突文件需要处理
+    ///     try repository.stageResolvedFile(path: "file2.swift")
+    /// }
+    /// // 所有冲突解决后，完成 merge
+    /// try repository.commitMerge(message: "Merge feature branch")
+    /// ```
+    public func stageResolvedFile(path: String) throws(SwiftGitXError) -> Bool {
+        var index: OpaquePointer?
+        defer { git_index_free(index) }
+
+        try git(operation: .add) {
+            git_repository_index(&index, pointer)
+        }
+
+        try git(operation: .add) {
+            git_index_add_bypath(index, path)
+        }
+
+        try git(operation: .add) {
+            git_index_write(index)
+        }
+
+        // 返回是否所有冲突都已解决
+        return git_index_has_conflicts(index) == 0
+    }
+
     /// Create a new commit containing the current contents of the index.
     ///
     /// - Parameters:
