@@ -57,17 +57,22 @@ func sshCredentialCallback(
     guard let credentials = SSHCredentialStore.shared.retrieve(for: credentialKey) else {
         return GIT_EUSER.rawValue
     }
-
-    // Create SSH key from memory
-    let result = git_cred_ssh_key_memory_new(
-        out,
-        credentials.username,
-        credentials.publicKey,
-        credentials.privateKey,
-        credentials.passphrase
-    )
-
-    return result
+    
+    if credentials.privateKey.count == 0 {
+        // Create Passphrase from memory
+        let result = git_credential_userpass_plaintext_new(out, credentials.username, credentials.passphrase)
+        return result
+    } else {
+        // Create SSH key from memory
+        let result = git_cred_ssh_key_memory_new(
+            out,
+            credentials.username,
+            credentials.publicKey,
+            credentials.privateKey,
+            credentials.passphrase
+        )
+        return result
+    }
 }
 
 /// Creates a persistent pointer to a String for use as callback payload
